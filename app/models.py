@@ -68,6 +68,13 @@ class AuditEventType(str, enum.Enum):
     RULE_CHECK = "RULE_CHECK"
     RETRIEVAL_MATCH = "RETRIEVAL_MATCH"
     LLM_CALL = "LLM_CALL"
+    HUMAN_DECISION = "HUMAN_DECISION"
+
+
+class HumanDecision(str, enum.Enum):
+    APPROVE = "APPROVE"
+    FLAG = "FLAG"
+    REQUEST_MORE_EVIDENCE = "REQUEST_MORE_EVIDENCE"
 
 
 class Applicant(Base):
@@ -205,10 +212,11 @@ class RuleRun(Base):
 class AuditLogEntry(Base):
     """
     Append-only ledger, never updated after insert. event_type discriminates
-    what produced it — only RULE_CHECK is populated today, but RETRIEVAL_MATCH
-    (RAG layer) and LLM_CALL (escalation layer) reuse this same table rather
-    than getting their own, since "what was evaluated and why, with a
-    timestamp" is the same shape regardless of which layer produced it.
+    what produced it — RULE_CHECK, RETRIEVAL_MATCH (RAG layer), LLM_CALL
+    (escalation layer), and HUMAN_DECISION (a reviewer's approve/flag/
+    request-more-evidence call) all reuse this same table rather than
+    getting their own, since "what was evaluated and why, with a timestamp"
+    is the same shape regardless of which layer produced it.
     """
 
     __tablename__ = "audit_log_entries"

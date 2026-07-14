@@ -9,6 +9,7 @@ from app.models import (
     EventEvidenceLink,
     EvidenceDocument,
     MatchType,
+    RuleRun,
     TimelineEvent,
     AuditLogEntry,
 )
@@ -97,8 +98,17 @@ def _build_evidence_matches(
     ]
 
 
-def _build_findings(audit_entries: list[AuditLogEntry]) -> list[dict]:
-    rule_checks = [e for e in audit_entries if e.event_type == AuditEventType.RULE_CHECK]
+def _build_findings(audit_entries: list[AuditLogEntry], latest_run_id: int | None) -> list[dict]:
+    """
+    Findings shows only the LATEST run's RULE_CHECK entries — re-running the
+    engine creates new audit rows rather than overwriting old ones (by
+    design, for history), but showing every run ever computed here would
+    read as duplication or contradiction. The full history still lives in
+    the Audit Log section below, unfiltered.
+    """
+    rule_checks = [
+        e for e in audit_entries if e.event_type == AuditEventType.RULE_CHECK and e.run_id == latest_run_id
+    ]
     escalations_by_source: dict[int, list[AuditLogEntry]] = {}
     for entry in audit_entries:
         if entry.event_type == AuditEventType.LLM_CALL and entry.source_entry_id:
@@ -108,6 +118,11 @@ def _build_findings(audit_entries: list[AuditLogEntry]) -> list[dict]:
         {"rule_check": rc, "escalations": escalations_by_source.get(rc.id, [])}
         for rc in sorted(rule_checks, key=lambda e: e.created_at)
     ]
+
+
+def _build_human_decisions(audit_entries: list[AuditLogEntry]) -> list[AuditLogEntry]:
+    decisions = [e for e in audit_entries if e.event_type == AuditEventType.HUMAN_DECISION]
+    return sorted(decisions, key=lambda e: e.created_at, reverse=True)
 
 
 def build_evidence_trail(db: Session, applicant_id: int) -> dict | None:
@@ -142,6 +157,12 @@ def build_evidence_trail(db: Session, applicant_id: int) -> dict | None:
         .order_by(AuditLogEntry.created_at)
         .all()
     )
+    latest_run = (
+        db.query(RuleRun)
+        .filter(RuleRun.applicant_id == applicant_id)
+        .order_by(RuleRun.created_at.desc())
+        .first()
+    )
 
     transactions = [e for e in events if e.source == EventSource.BANK_FEED]
 
@@ -151,6 +172,8 @@ def build_evidence_trail(db: Session, applicant_id: int) -> dict | None:
         "milestones": _build_milestones(events, links),
         "transactions": sorted(transactions, key=lambda e: e.start_date),
         "evidence_matches": _build_evidence_matches(links, documents, events),
-        "findings": _build_findings(audit_entries),
+        "findings": _build_findings(audit_entries, latest_run.id if latest_run else None),
+        "human_decisions": _build_human_decisions(audit_entries),
+        "latest_run_id": latest_run.id if latest_run else None,
         "audit_log": audit_entries,
     }

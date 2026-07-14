@@ -109,6 +109,26 @@
 
   .empty { color: var(--muted); font-style: italic; font-size: 0.9rem; }
 
+  .decision-record { border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 0.75rem; }
+  .decision-record .head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.3rem; font-weight: 600; }
+  .decision-record .summary { font-size: 0.9rem; }
+  .decision-record .detail-line { font-size: 0.78rem; color: var(--muted); margin-top: 0.3rem; }
+
+  .decision-form { border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.15rem; background: var(--bg-soft); }
+  .decision-form .form-row { margin-bottom: 0.85rem; }
+  .decision-form label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.3rem; }
+  .decision-form input[type="text"], .decision-form textarea {
+    width: 100%; padding: 0.5rem 0.6rem; border: 1px solid var(--border); border-radius: 6px;
+    font-family: inherit; font-size: 0.9rem; background: #fff;
+  }
+  .decision-options { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+  .decision-options .option { display: flex; align-items: center; gap: 0.35rem; font-weight: 400; font-size: 0.9rem; }
+  .decision-form button {
+    background: var(--ink); color: #fff; border: none; border-radius: 6px;
+    padding: 0.5rem 1.1rem; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  }
+  .decision-form button:hover { opacity: 0.85; }
+
   .audit-log { max-height: 420px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; }
   .audit-log table { font-size: 0.82rem; }
   .audit-log th { position: sticky; top: 0; background: #fff; }
@@ -234,6 +254,47 @@
       {% endfor %}
     {% else %}
       <div class="empty">No rule findings recorded yet — run the rule engine for this applicant first.</div>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2>Reviewer Decision</h2>
+
+    {% if human_decisions %}
+      {% for d in human_decisions %}
+      <div class="decision-record">
+        <div class="head">
+          <span>{{ d.actor }}</span>
+          <span class="badge {{ d.status|badge_class }}">{{ d.status|pretty }}</span>
+        </div>
+        <div class="summary">{{ d.summary }}</div>
+        <div class="detail-line">{{ d.created_at.strftime('%b %d, %Y %H:%M') }}</div>
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    {% if latest_run_id %}
+    <form class="decision-form" method="post" action="/applicants/{{ applicant.id }}/decision">
+      <div class="form-row">
+        <label for="reviewer">Reviewer</label>
+        <input type="text" id="reviewer" name="reviewer" placeholder="Your name">
+      </div>
+      <div class="form-row">
+        <label>Decision</label>
+        <div class="decision-options">
+          <label class="option"><input type="radio" name="decision" value="APPROVE" required> Approve</label>
+          <label class="option"><input type="radio" name="decision" value="FLAG"> Flag for Review</label>
+          <label class="option"><input type="radio" name="decision" value="REQUEST_MORE_EVIDENCE"> Request More Evidence</label>
+        </div>
+      </div>
+      <div class="form-row">
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" rows="2" placeholder="Optional"></textarea>
+      </div>
+      <button type="submit">Record Decision</button>
+    </form>
+    {% else %}
+      <div class="empty">No rule run yet for this applicant — nothing to make a decision against.</div>
     {% endif %}
   </section>
 

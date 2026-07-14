@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.llm.context import build_context
 from app.llm.escalation import MODEL as LLM_MODEL
 from app.llm.escalation import escalate
-from app.models import AuditEventType, AuditLogEntry, EvidenceDocument, RuleRun, TimelineEvent
+from app.models import AuditEventType, AuditLogEntry, EvidenceDocument, HumanDecision, RuleRun, TimelineEvent
 from app.rag.config import EMBEDDING_MODEL_NAME
 from app.rag.matcher import match_document_to_event
 from app.rules import config as rule_config
@@ -129,6 +129,35 @@ def log_document_match(
         subject_event_ids=[event.id],
         supporting_evidence_ids=[document.id],
         detail=detail,
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+def record_human_decision(
+    db: Session,
+    applicant_id: int,
+    run_id: int | None,
+    decision: HumanDecision,
+    reviewer: str,
+    notes: str | None,
+) -> AuditLogEntry:
+    """
+    Records a reviewer's approve/flag/request-more-evidence call as a
+    permanent, append-only audit entry — the decision becomes part of the
+    trail itself, not something implied by whatever the page happened to
+    show at the time someone looked at it.
+    """
+    entry = AuditLogEntry(
+        run_id=run_id,
+        applicant_id=applicant_id,
+        event_type=AuditEventType.HUMAN_DECISION,
+        actor=reviewer or "Reviewer",
+        status=decision.value,
+        summary=notes or f"{decision.value.replace('_', ' ').title()} — no notes provided.",
+        detail={"reviewer": reviewer, "decision": decision.value, "notes": notes, "run_id": run_id},
     )
     db.add(entry)
     db.commit()
