@@ -86,6 +86,23 @@
   .finding .rule-name { font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88rem; }
   .finding .summary { font-size: 0.92rem; line-height: 1.45; }
   .finding .detail-line { font-size: 0.85rem; color: var(--muted); margin-top: 0.35rem; }
+  .action-item {
+    margin-top: 0.6rem;
+    padding: 0.55rem 0.8rem;
+    background: var(--amber-bg);
+    border: 1px solid #f6dfae;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    line-height: 1.4;
+  }
+  .action-item .action-label {
+    font-weight: 700;
+    color: var(--amber);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-right: 0.5rem;
+  }
   .escalation { margin-top: 0.75rem; padding: 0.75rem 0.9rem; background: var(--bg-soft); border-radius: 8px; border-left: 3px solid var(--amber); }
   .escalation .head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.3rem; }
   .escalation .escalation-label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); }
@@ -198,7 +215,7 @@
             <div class="detail-line">Why: {{ rc.detail.finding.unresolved_reason }}</div>
           {% endif %}
           {% if rc.detail.finding.what_would_resolve %}
-            <div class="detail-line">What would resolve it: {{ rc.detail.finding.what_would_resolve }}</div>
+            <div class="action-item"><span class="action-label">Next step</span> {{ rc.detail.finding.what_would_resolve }}</div>
           {% endif %}
 
           {% for esc in f.escalations %}
@@ -208,6 +225,9 @@
               <span class="badge {{ esc.status|badge_class }}">{{ esc.status }}</span>
             </div>
             <div class="summary">{{ esc.summary }}</div>
+            {% if esc.detail.decision.what_would_resolve %}
+              <div class="action-item"><span class="action-label">Next step</span> {{ esc.detail.decision.what_would_resolve }}</div>
+            {% endif %}
           </div>
           {% endfor %}
         </div>
