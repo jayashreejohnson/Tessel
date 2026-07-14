@@ -140,7 +140,7 @@ def ingest_transactions(
             start_date=txn.date,
             amount=abs(txn.amount),
             currency=txn.iso_currency_code,
-            counterparty=txn.merchant_name or txn.name,
+            counterparty=txn.name,
             source=EventSource.BANK_FEED,
             details={
                 "plaid_transaction_id": txn.transaction_id,
