@@ -212,7 +212,13 @@ class AuditLogEntry(Base):
     supporting_evidence_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)
     detail: Mapped[dict] = mapped_column(JSON)
 
+    source_entry_id: Mapped[int | None] = mapped_column(
+        ForeignKey("audit_log_entries.id"), nullable=True, index=True
+    )
+    """The RULE_CHECK entry this entry escalates or otherwise builds on, if any."""
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
     run: Mapped["RuleRun | None"] = relationship(back_populates="audit_entries")
     applicant: Mapped["Applicant"] = relationship()
+    source_entry: Mapped["AuditLogEntry | None"] = relationship(remote_side=[id])

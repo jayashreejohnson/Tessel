@@ -2,10 +2,13 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
+from app.llm.context import build_context
+from app.llm.escalation import MODEL as LLM_MODEL
+from app.llm.escalation import escalate
 from app.models import AuditEventType, AuditLogEntry, RuleRun
 from app.rules import config as rule_config
 from app.rules.engine import run_transition_check
-from app.rules.results import RuleFinding
+from app.rules.results import RuleFinding, RuleStatus
 
 _CONFIG_SNAPSHOT = {
     "MIN_GAP_DAYS": rule_config.MIN_GAP_DAYS,
@@ -58,3 +61,44 @@ def run_and_log(db: Session, applicant_id: int, as_of: date, triggered_by: str =
     """Runs the deterministic rule engine and persists every finding it produces."""
     findings = run_transition_check(db, applicant_id, as_of)
     return persist_findings(db, applicant_id, as_of, findings, triggered_by)
+
+
+def persist_escalation(db: Session, source_entry: AuditLogEntry, client=None) -> AuditLogEntry:
+    """
+    Sends one NEEDS_REVIEW RULE_CHECK entry to the LLM escalation layer and
+    persists the result as an LLM_CALL entry, linked back via source_entry_id.
+    The rule-check entry itself is never edited — this adds a new layer of
+    reasoning on top of it, it does not overwrite the deterministic fact.
+    """
+    context = build_context(db, source_entry)
+    decision = escalate(db, source_entry, client=client)
+
+    entry = AuditLogEntry(
+        run_id=source_entry.run_id,
+        applicant_id=source_entry.applicant_id,
+        source_entry_id=source_entry.id,
+        event_type=AuditEventType.LLM_CALL,
+        actor=f"{LLM_MODEL}:record_escalation_decision",
+        status=decision.resolution.value,
+        summary=decision.reasoning,
+        subject_event_ids=decision.cited_event_ids,
+        supporting_evidence_ids=decision.cited_evidence_ids,
+        detail={
+            "model": LLM_MODEL,
+            "context_sent": context,
+            "decision": decision.model_dump(mode="json"),
+        },
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+def escalate_needs_review(db: Session, entries: list[AuditLogEntry], client=None) -> list[AuditLogEntry]:
+    """Escalates every NEEDS_REVIEW RULE_CHECK entry in the given list; skips the rest."""
+    return [
+        persist_escalation(db, entry, client=client)
+        for entry in entries
+        if entry.event_type == AuditEventType.RULE_CHECK and entry.status == RuleStatus.NEEDS_REVIEW.value
+    ]
