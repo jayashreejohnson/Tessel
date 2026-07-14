@@ -18,16 +18,29 @@ from app.db import Base
 
 
 class EventCategory(str, enum.Enum):
-    IMMIGRATION_STATUS = "IMMIGRATION_STATUS"
+    # An in-progress, authorized reason income may lawfully pause — the
+    # generic concept the rule engine reasons about. EAD_PENDING is the one
+    # populated instance today; a future scenario (parental leave, a
+    # severance/notice period) is a new EventType in this same category, not
+    # a new category or a rule-engine change — see interruption_gap_rule.py.
+    AUTHORIZED_INTERRUPTION = "AUTHORIZED_INTERRUPTION"
+    # Background case-lifecycle milestones that aren't themselves an active
+    # interruption (the baseline status before one starts, or the terminal
+    # outcome after one ends). Narrative context, not something any rule
+    # currently queries.
+    CASE_STATUS = "CASE_STATUS"
     INCOME = "INCOME"
     TRANSFER = "TRANSFER"
 
 
 class EventType(str, enum.Enum):
+    # CASE_STATUS instances (see EventCategory.CASE_STATUS above)
     F1_ACTIVE = "F1_ACTIVE"
-    EAD_PENDING = "EAD_PENDING"
     EAD_APPROVED = "EAD_APPROVED"
     EAD_DENIED = "EAD_DENIED"
+    # AUTHORIZED_INTERRUPTION instance — F-1/OPT is the first scenario this
+    # is populated for, not an assumption baked into the category itself
+    EAD_PENDING = "EAD_PENDING"
     INCOME_RECEIVED = "INCOME_RECEIVED"
     INCOME_GAP = "INCOME_GAP"
     INTL_TRANSFER_RECEIVED = "INTL_TRANSFER_RECEIVED"
@@ -80,10 +93,11 @@ class Applicant(Base):
 class TimelineEvent(Base):
     """
     A single dated fact or span on an applicant's timeline. Deliberately one
-    wide table rather than per-category tables (visa/income/transfer) — the
-    MVP's rule checks reason across categories (e.g. does an INCOME_GAP span
-    overlap an EAD_PENDING span), so they need to be queryable/sortable together
-    on shared start/end dates rather than joined across separate tables.
+    wide table rather than per-category tables (interruption/income/transfer)
+    — the rule checks reason across categories (e.g. does an INCOME_GAP span
+    overlap an AUTHORIZED_INTERRUPTION span), so they need to be
+    queryable/sortable together on shared start/end dates rather than joined
+    across separate tables.
     """
 
     __tablename__ = "timeline_events"

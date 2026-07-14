@@ -34,12 +34,10 @@
     border-radius: 10px;
     padding: 1rem 1.25rem;
     margin-bottom: 2rem;
-    display: flex;
-    align-items: baseline;
-    gap: 0.6rem;
   }
-  .stage-banner .label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .stage-banner .label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; margin-right: 0.6rem; }
   .stage-banner .value { font-size: 1.15rem; font-weight: 600; }
+  .stage-banner .basis { margin-top: 0.35rem; font-size: 0.85rem; color: var(--muted); }
 
   section { margin-bottom: 2.25rem; }
   section > h2 {
@@ -109,8 +107,13 @@
   </header>
 
   <div class="stage-banner">
-    <span class="label">Current Stage</span>
-    <span class="value">{{ current_stage }}</span>
+    <div>
+      <span class="label">Case Status</span>
+      <span class="value">{{ current_stage.headline }}</span>
+    </div>
+    {% if current_stage.basis %}
+    <div class="basis">Basis: {{ current_stage.basis }}</div>
+    {% endif %}
   </div>
 
   <section>
@@ -160,7 +163,7 @@
   </section>
 
   <section>
-    <h2>RAG-Matched Evidence</h2>
+    <h2>Evidence Verification</h2>
     {% if evidence_matches %}
     <table>
       <thead><tr><th>Document</th><th>Matched Against</th><th>Result</th><th class="num">Similarity</th></tr></thead>

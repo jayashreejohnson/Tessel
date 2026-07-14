@@ -6,9 +6,9 @@
 MIN_GAP_DAYS = 14
 
 # How much slack to allow when checking whether a gap falls inside an
-# EAD_PENDING span, to absorb normal reporting/processing lag rather than
-# treating a few-day mismatch as a hard misalignment.
-EAD_ALIGNMENT_TOLERANCE_DAYS = 7
+# authorized-interruption span, to absorb normal reporting/processing lag
+# rather than treating a few-day mismatch as a hard misalignment.
+INTERRUPTION_ALIGNMENT_TOLERANCE_DAYS = 7
 
 # Window padding around a gap when searching for transfers "during" it —
 # a transfer that lands just before/after the gap's recorded edges can still

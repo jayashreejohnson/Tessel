@@ -4,7 +4,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.db import get_db, init_db
-from app.evidence_trail import build_evidence_trail
+from app.evidence_trail import build_evidence_trail, pretty_label
 
 app = FastAPI(title="Tessel")
 templates = Jinja2Templates(directory="app/templates")
@@ -19,15 +19,7 @@ _BADGE_CLASSES = {
     "ESCALATE_TO_HUMAN": "badge-amber",
 }
 templates.env.filters["badge_class"] = lambda status: _BADGE_CLASSES.get(status, "badge-gray")
-
-_ACRONYMS = {"EAD", "INTL", "RAG"}
-
-
-def _pretty(value: str) -> str:
-    return " ".join(w if w.upper() in _ACRONYMS else w.capitalize() for w in value.split("_"))
-
-
-templates.env.filters["pretty"] = _pretty
+templates.env.filters["pretty"] = pretty_label
 
 
 @app.on_event("startup")

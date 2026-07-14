@@ -2,7 +2,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from app.rules import ead_gap_rule, remittance_rule
+from app.rules import interruption_gap_rule, remittance_rule
 from app.rules.gaps import detect_income_gaps
 from app.rules.results import RuleFinding
 
@@ -17,7 +17,7 @@ def run_transition_check(db: Session, applicant_id: int, as_of: date) -> list[Ru
 
     findings: list[RuleFinding] = []
     for gap in gaps:
-        findings.append(ead_gap_rule.evaluate(db, gap, as_of))
+        findings.append(interruption_gap_rule.evaluate(db, gap, as_of))
         findings.append(remittance_rule.evaluate(db, gap))
 
     return findings

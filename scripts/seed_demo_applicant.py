@@ -56,7 +56,7 @@ def main():
         db.add(
             TimelineEvent(
                 applicant_id=applicant.id,
-                category=EventCategory.IMMIGRATION_STATUS,
+                category=EventCategory.AUTHORIZED_INTERRUPTION,
                 event_type=EventType.EAD_PENDING,
                 start_date=today - timedelta(days=12),
                 end_date=None,
