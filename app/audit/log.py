@@ -5,7 +5,9 @@ from sqlalchemy.orm import Session
 from app.llm.context import build_context
 from app.llm.escalation import MODEL as LLM_MODEL
 from app.llm.escalation import escalate
-from app.models import AuditEventType, AuditLogEntry, RuleRun
+from app.models import AuditEventType, AuditLogEntry, EvidenceDocument, RuleRun, TimelineEvent
+from app.rag.config import EMBEDDING_MODEL_NAME
+from app.rag.matcher import match_document_to_event
 from app.rules import config as rule_config
 from app.rules.engine import run_transition_check
 from app.rules.results import RuleFinding, RuleStatus
@@ -102,3 +104,33 @@ def escalate_needs_review(db: Session, entries: list[AuditLogEntry], client=None
         for entry in entries
         if entry.event_type == AuditEventType.RULE_CHECK and entry.status == RuleStatus.NEEDS_REVIEW.value
     ]
+
+
+def log_document_match(
+    db: Session, document: EvidenceDocument, event: TimelineEvent
+) -> AuditLogEntry:
+    """
+    Runs the RAG match between an evidence document and the milestone event
+    it's meant to support, persists the resulting EventEvidenceLink, and logs
+    a RETRIEVAL_MATCH entry recording what was compared and why.
+    """
+    link, detail = match_document_to_event(db, document, event)
+
+    entry = AuditLogEntry(
+        applicant_id=document.applicant_id,
+        event_type=AuditEventType.RETRIEVAL_MATCH,
+        actor=f"rag:{EMBEDDING_MODEL_NAME}",
+        status=link.match_type.value,
+        summary=(
+            f"Evidence document #{document.id} ({document.doc_type.value}) matched "
+            f"against event #{event.id} ({event.event_type.value}): {link.match_type.value} "
+            f"(similarity={detail['similarity_score']:.3f})"
+        ),
+        subject_event_ids=[event.id],
+        supporting_evidence_ids=[document.id],
+        detail=detail,
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
