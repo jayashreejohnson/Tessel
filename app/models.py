@@ -51,6 +51,12 @@ class MatchType(str, enum.Enum):
     UNCLEAR = "UNCLEAR"
 
 
+class AuditEventType(str, enum.Enum):
+    RULE_CHECK = "RULE_CHECK"
+    RETRIEVAL_MATCH = "RETRIEVAL_MATCH"
+    LLM_CALL = "LLM_CALL"
+
+
 class Applicant(Base):
     __tablename__ = "applicants"
 
@@ -64,6 +70,9 @@ class Applicant(Base):
         back_populates="applicant", cascade="all, delete-orphan"
     )
     evidence_documents: Mapped[list["EvidenceDocument"]] = relationship(
+        back_populates="applicant", cascade="all, delete-orphan"
+    )
+    rule_runs: Mapped[list["RuleRun"]] = relationship(
         back_populates="applicant", cascade="all, delete-orphan"
     )
 
@@ -154,3 +163,56 @@ class EventEvidenceLink(Base):
     evidence_document: Mapped["EvidenceDocument"] = relationship(
         back_populates="evidence_links"
     )
+
+
+class RuleRun(Base):
+    """
+    One invocation of the rule engine for an applicant — the "batch" that
+    groups whatever AuditLogEntry rows it produced, so you can answer "what
+    did the system conclude as of the March review" rather than only ever
+    seeing an undifferentiated pile of findings.
+    """
+
+    __tablename__ = "rule_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    applicant_id: Mapped[int] = mapped_column(ForeignKey("applicants.id"), index=True)
+
+    as_of_date: Mapped[date] = mapped_column(Date)
+    triggered_by: Mapped[str] = mapped_column(String, default="system")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+    applicant: Mapped["Applicant"] = relationship(back_populates="rule_runs")
+    audit_entries: Mapped[list["AuditLogEntry"]] = relationship(
+        back_populates="run", cascade="all, delete-orphan"
+    )
+
+
+class AuditLogEntry(Base):
+    """
+    Append-only ledger, never updated after insert. event_type discriminates
+    what produced it — only RULE_CHECK is populated today, but RETRIEVAL_MATCH
+    (RAG layer) and LLM_CALL (escalation layer) reuse this same table rather
+    than getting their own, since "what was evaluated and why, with a
+    timestamp" is the same shape regardless of which layer produced it.
+    """
+
+    __tablename__ = "audit_log_entries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    run_id: Mapped[int | None] = mapped_column(ForeignKey("rule_runs.id"), nullable=True, index=True)
+    applicant_id: Mapped[int] = mapped_column(ForeignKey("applicants.id"), index=True)
+
+    event_type: Mapped[AuditEventType] = mapped_column(Enum(AuditEventType), index=True)
+    actor: Mapped[str] = mapped_column(String)
+    status: Mapped[str | None] = mapped_column(String, nullable=True)
+    summary: Mapped[str] = mapped_column(Text)
+
+    subject_event_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    supporting_evidence_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    detail: Mapped[dict] = mapped_column(JSON)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+    run: Mapped["RuleRun | None"] = relationship(back_populates="audit_entries")
+    applicant: Mapped["Applicant"] = relationship()
