@@ -177,3 +177,40 @@ def build_evidence_trail(db: Session, applicant_id: int) -> dict | None:
         "latest_run_id": latest_run.id if latest_run else None,
         "audit_log": audit_entries,
     }
+
+
+def build_case_queue(db: Session) -> list[dict]:
+    """One summary row per applicant: case status, latest run, latest reviewer decision — links into the full trail."""
+    rows = []
+    for applicant in db.query(Applicant).order_by(Applicant.created_at.desc()).all():
+        events = db.query(TimelineEvent).filter(TimelineEvent.applicant_id == applicant.id).all()
+        links = (
+            db.query(EventEvidenceLink)
+            .join(TimelineEvent, EventEvidenceLink.timeline_event_id == TimelineEvent.id)
+            .filter(TimelineEvent.applicant_id == applicant.id)
+            .all()
+        )
+        latest_run = (
+            db.query(RuleRun)
+            .filter(RuleRun.applicant_id == applicant.id)
+            .order_by(RuleRun.created_at.desc())
+            .first()
+        )
+        latest_decision = (
+            db.query(AuditLogEntry)
+            .filter(
+                AuditLogEntry.applicant_id == applicant.id,
+                AuditLogEntry.event_type == AuditEventType.HUMAN_DECISION,
+            )
+            .order_by(AuditLogEntry.created_at.desc())
+            .first()
+        )
+        rows.append(
+            {
+                "applicant": applicant,
+                "stage": _derive_current_stage(events, links),
+                "latest_run": latest_run,
+                "latest_decision": latest_decision,
+            }
+        )
+    return rows

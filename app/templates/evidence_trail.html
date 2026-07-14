@@ -25,6 +25,8 @@
   .page { max-width: 900px; margin: 0 auto; }
   header { margin-bottom: 1.75rem; }
   header .eyebrow { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  header .back-link { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--border); }
+  header .back-link:hover { color: var(--ink); }
   header h1 { margin: 0.2rem 0 0; font-size: 1.6rem; }
   header .meta { color: var(--muted); font-size: 0.9rem; margin-top: 0.25rem; }
 
@@ -138,7 +140,7 @@
 <div class="page">
 
   <header>
-    <div class="eyebrow">Tessel — Evidence Trail</div>
+    <div class="eyebrow"><a href="/" class="back-link">← All Cases</a> · Tessel — Evidence Trail</div>
     <h1>{{ applicant.full_name }}</h1>
     <div class="meta">Applicant #{{ applicant.id }} · {{ applicant.external_id }}</div>
   </header>

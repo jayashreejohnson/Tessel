@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.audit.log import record_human_decision
 from app.db import get_db, init_db
-from app.evidence_trail import build_evidence_trail, pretty_label
+from app.evidence_trail import build_case_queue, build_evidence_trail, pretty_label
 from app.models import HumanDecision
 
 app = FastAPI(title="Tessel")
@@ -30,6 +30,12 @@ templates.env.filters["pretty"] = pretty_label
 @app.on_event("startup")
 def on_startup():
     init_db()
+
+
+@app.get("/", response_class=HTMLResponse)
+def case_queue(request: Request, db: Session = Depends(get_db)):
+    rows = build_case_queue(db)
+    return templates.TemplateResponse(request, "case_queue.html", {"rows": rows})
 
 
 @app.get("/applicants/{applicant_id}/evidence-trail", response_class=HTMLResponse)
